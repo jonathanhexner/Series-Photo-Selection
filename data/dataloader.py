@@ -3,7 +3,7 @@ from torchvision import transforms
 import numpy as np
 import torch
 from PIL import Image
-import make_shuffle_path
+from data import make_shuffle_path
 
 
 class Normalize(object):
@@ -61,35 +61,50 @@ def transform(sample):
 
 class MyDataset(data.Dataset):
 
-    def __init__(self, train=True):
+    def __init__(self, train=True, image_root=r'D:\Similar Images\automatic_triage_photo_series\train_val\train_val_imgs', seed=None):
         if train:
-            self.pathA, self.pathB, self.result, _, _, _ = make_shuffle_path()
+            self.pathA, self.pathB, self.result, _, _, _ = make_shuffle_path.make_shuffle_path(seed=seed)
         else:
-            _, _, _, self.pathA, self.pathB, self.result = make_shuffle_path()
+            _, _, _, self.pathA, self.pathB, self.result = make_shuffle_path.make_shuffle_path(seed=seed)
         self.train = train
+        self.image_root = image_root
 
     def __getitem__(self, index):
-        imageA = Image.open('/home/user/train_val_imgs/' + self.pathA[index]).convert('RGB')
-        # imageA.show()
-        imageB = Image.open('/home/user/train_val_imgs/' + self.pathB[index]).convert('RGB')
-        # imageB.show()
-        # print(self.result[index])
-        if self.train:
-            imageA = transform(imageA)
-            imageB = transform(imageB)
-            return imageA, imageB, int(self.result[index])
-        else:
-            imageA = transform(imageA)
-            imageB = transform(imageB)
-            return imageA, imageB, int(self.result[index])
+        import os
+        imageA_path = os.path.join(self.image_root, self.pathA[index])
+        imageB_path = os.path.join(self.image_root, self.pathB[index])
+
+        imageA = Image.open(imageA_path).convert('RGB')
+        imageB = Image.open(imageB_path).convert('RGB')
+
+        imageA = transform(imageA)
+        imageB = transform(imageB)
+        return {
+            'img1': imageA,
+            'img2': imageB,
+            'winner': int(self.result[index]),
+            'image1': self.pathA[index],
+            'image2': self.pathB[index]
+        }
 
     def __len__(self):
         return len(self.result)
 
 
-def make_loader():
-    train_data = MyDataset(train=True)
-    val_data = MyDataset(train=False)
-    trainloader = data.DataLoader(train_data, batch_size=32, shuffle=True, num_workers=2, pin_memory=True)
-    valloader = data.DataLoader(val_data, batch_size=32, shuffle=False, num_workers=2, pin_memory=True)
+def make_loader(batch_size=8, num_workers=0, seed=None):
+    """
+    Create data loaders for training and validation.
+
+    Args:
+        batch_size: Batch size for training (default 8 for CPU)
+        num_workers: Number of data loading workers (default 0 for Windows CPU)
+        seed: Optional random seed for reproducible data shuffling (default: None)
+    """
+    train_data = MyDataset(train=True, seed=seed)
+    val_data = MyDataset(train=False, seed=seed)
+    # Set pin_memory=False for CPU, num_workers=0 to avoid Windows multiprocessing issues
+    trainloader = data.DataLoader(train_data, batch_size=batch_size, shuffle=True,
+                                 num_workers=num_workers, pin_memory=False)
+    valloader = data.DataLoader(val_data, batch_size=batch_size, shuffle=False,
+                               num_workers=num_workers, pin_memory=False)
     return train_data, val_data, trainloader, valloader
