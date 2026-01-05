@@ -17,7 +17,7 @@ def format_image_path(series_id, img_id, series_padding=6, img_padding=2):
     """
     padded_series = str(series_id).zfill(series_padding)
     padded_img = str(img_id).zfill(img_padding)
-    return f"{padded_series}-{padded_img}.jpg"
+    return f"{padded_series}-{padded_img}.JPG"
 
 
 def make_shuffle_path(seed=None):
